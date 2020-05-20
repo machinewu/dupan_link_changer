@@ -6,9 +6,7 @@ This code refers to the modified code of mengzonefire (v1.1.8):
 https://greasyfork.org/scripts/397324-%E7%A7%92%E4%BC%A0%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%96/code/%E7%A7%92%E4%BC%A0%E9%93%BE%E6%8E%A5%E6%8F%90%E5%8F%96.user.js
 """
 
-
 import sys
-
 import re
 import base64
 import json
@@ -16,15 +14,33 @@ import traceback
 
 if sys.version_info[0] >= 3:
     from functools import reduce
-    uinput = input
+
+    def utf8_input(*args):
+        return input(*args)
+
     base64_decodestring = lambda x: base64.decodebytes(x.encode()).decode()
     base64_encodestring = lambda x: base64.encodebytes(x.encode()).decode()
     base64_b64decode = base64.b64decode
+
+    def console(msg, end='\n'):
+        sys.stdout.write('%s%s' % (msg, end))
 else:
-    uinput = raw_input
+    # reload(sys)
+    # sys.setdefaultencoding('utf-8')
+    output_encoding = sys.stdout.encoding
+    input_encoding = sys.stdin.encoding
+
+    def utf8_input(*args):
+        x = raw_input(*args)
+        return x.decode(input_encoding).encode('utf-8')
+
     base64_decodestring = base64.decodestring
     base64_encodestring = base64.encodestring
     base64_b64decode = lambda x: bytearray(base64.b64decode(x))
+
+    def console(msg, end='\n'):
+        sys.stdout.write('%s%s' % (msg if not isinstance(msg, str) else msg.decode('utf-8').encode(output_encoding), end))
+
 
 __author__ = 'MachineWu'
 
@@ -48,6 +64,7 @@ class DuFile:
         return c
 
     def to_pandownload_link(self):
+        a = '%s|%s|%s|%s' % (self.name, self.size, self.md5, self.md5s)
         return 'bdpan://%s' % base64_encodestring('%s|%s|%s|%s' % (self.name, self.size, self.md5, self.md5s)).replace('\n', '')
 
     def to_mengji_link(self):
@@ -63,15 +80,17 @@ class DuFile:
             return 'unknown link'
 
     def __repr__(self):
-        return "size: %d, md5: %s, md5s: %s, name: %s" % (self.size, self.md5, self.md5s, self.name)
+        return 'size: %d, md5: %s, md5s: %s, name: %s' % (self.size, self.md5, self.md5s, self.name)
 
 
 def analysis_pandownload(url):
-    f = re.sub(r'^bdpan://', '', re.sub(r'\s', '', url), re.I).split(' ')
-    f = map(lambda x: str(base64_decodestring(x.strip())), f)
+    f = re.sub(r'\s', '\n', re.sub(r'^bdpan://', '', url, re.I)).split('\n')
+    f = map(lambda x: x.strip(), f)
+    f = filter(lambda x: len(x) > 0, f)
+    f = map(lambda x: str(base64_decodestring(x)), f)
     f = map(lambda x: re.search(r'([\s\S]+)\|([\d]{1,20})\|([\da-f]{32})\|([\da-f]{32})', x).groups(), f)
     f = map(lambda x: DuFile.make(name=x[0], size=x[1], md5=x[2].lower(), md5s=x[3].lower()), f)
-    return f
+    return list(f)
 
 
 def analysis_ali213(url):
@@ -100,7 +119,7 @@ def analysis_ali213(url):
 
     total = read_uint(5)
     ptr = 9
-    files = list()
+    ff = list()
     for _ in range(total):
         # size (8 bytes)
         # MD5 + MD5S (0x20)
@@ -114,23 +133,40 @@ def analysis_ali213(url):
         ptr += 0x2C
         d.name = read_unicode(ptr, name_size)
         ptr += name_size
-        files.append(d)
+        ff.append(d)
 
-    return files
+    return ff
 
 
 def analysis_pcsgo(url):
     f = url.split('\n')
+    f = map(lambda x: x.strip(), f)
+    f = filter(lambda x: len(x) > 0, f)
     f = map(lambda x: re.search(r'-length=([\d]{1,20}) -md5=([\da-f]{32}) -slicemd5=([\da-f]{32}) -crc32=([\d]{1,20}) "([\s\S]+)"', x).groups(), f)
     f = map(lambda x: DuFile.make(name=x[4], size=x[0], md5=x[1].lower(), md5s=x[2].lower()), f)
-    return f
+    return list(f)
 
 
 def analysis_mengji(url):
     f = url.split('\n')
+    f = map(lambda x: x.strip(), f)
+    f = filter(lambda x: len(x) > 0, f)
     f = map(lambda x: re.search(r'([\dA-F]{32})#([\dA-F]{32})#([\d]{1,20})#([\s\S]+)', x).groups(), f)
     f = map(lambda x: DuFile.make(name=x[3], size=x[2], md5=x[0].lower(), md5s=x[1].lower()), f)
-    return f
+    return list(f)
+
+
+def analysis_common_bdlink(url):
+    f = url.split('\n')
+    f = map(lambda x: x.strip(), f)
+    f = filter(lambda x: len(x) > 0, f)
+    f = map(lambda x: re.search(r'bdlink=(.*)', x, re.I).group(1), f)
+    f = map(lambda x: base64_decodestring(x), f)
+    f = map(lambda x: analysis_mengji(x), f)
+    ff = list()
+    for x in f:
+        ff.extend(x)
+    return ff
 
 
 def link_parser(url):
@@ -144,16 +180,16 @@ def link_parser(url):
     elif re.search(r'^BaiduPCS-Go', url, re.I):
         # BaiduPCS-Go
         return analysis_pcsgo(url)
+    elif re.search(r'^https?://.*?bdlink=', url, re.I):
+        return analysis_common_bdlink(url)
     else:
         # MengJi
         return analysis_mengji(url)
 
 
-def console(msg, end='\n'):
-    sys.stdout.write(u'%s%s' % (msg, end))
-
-
 def _test():
+    global target_link
+
     test_sample = list()
     test_sample.append('bdpan://44CMMDHjgI0ucmFyfDU3NDA3MTUzNnxiNmE1NTczZjk1MTEyZWQ2NmU1NzE1ZDRlMDQ4MzIyZnxlZTAyOTJlNmY2YzUyMzA4ZGNjZTM3ZjZlNzYyMzUyMw==')
     test_sample.append("""BDLINKQkRGUwAHAAAA0/AgXQEAAABvU6INa3SryWsF1pGpw7ALjjjB7lz4B3zYkhccg7C38ToAAABXAG8AcgBsAGQALgBXAGEAcgAuAFoALgAyADAAMQAzAC4AVQBuAHIAYQB0AGUAZAAuAEMAdQB0
@@ -164,9 +200,20 @@ def _test():
         AEgARAAuAG0AawB2AC90N/wBAAAAzg+7wDIkqZ3dMofyRkiNe/HvEFRva/sn7UaMwnpEUDovAAAARABlAGEAZAAuAE0AYQBuAC4ARABvAHcAbgAuADIAMAAxADMALgAxADAAOAAwAHAALgBCAGwAdQ
         BSAGEAeQAuAHgAMgA2ADQALQBTAFAAQQBSAEsAUwAuAG0AawB2ANs0gBcBAAAAls56xu/daOjUFfYnqAPVizbpxqmp1s/7HIb2xXFohvoUAAAAZABhAGEALQBlAGwAeQBzAGkAdQBtAC0ANwAyADAA
         cAAuAG0AawB2AJrzxRcBAAAAAJ/LCuSf1sSsoG4MPpZcW/Iv+/EEwjAk7n2vqmjPfZIXAAAAYwBiAGcAYgAtAGMAbABhAHMAaAB0AGkAdABhAG4AcwA3ADIAMAAuAG0AawB2AAA=""")
-    test_sample.append('3C7E037608405F71810B799EA978EA7A#E25F1F5F27E860C5C67D5589E9E3DCF9#320828643#第268个纸片老婆.rar')
+    test_sample.append('3C7E037608405F71810B799EA978EA7A#E25F1F5F27E860C5C67D5589E9E3DCF9#320828643#第268个.rar')
     test_sample.append('BaiduPCS-Go rapidupload -length=504723006 -md5=e4166ab27799d640ffda920415b684ef -slicemd5=dd662581d3028842d7910d35c083e1d2 -crc32=90455140 "在地下城邂逅是否错过了什么Dungeon Machita PC版.rar"')
+    test_sample.append('https://pan.baidu.com/#bdlink=MjdFRjI2RDQ5QzZFNDYyRDI0MThCMTQ0QkI1OUM1MDYjOUYyRjgwN0NERjA0MTRFRkZDOEE1OENEQURFNkQ5OTkjOTQyMTc5NDE3I0Z1cmlvbiBDaHJvbmljbGVzLnppcA==')
+    test_sample.append('https://xxx.yyy.com/#bdlink=NzY3M0ZERTAyMkM5OEJEMEM3NzM2NzlGRTUyMEMxQzkjREQyRTFDMUM4Mzg2NEU4MDNDOUM1M0IyNzMxQkVDMkQjMTcxNTI3MjE5MiNbMjAwNDI0XVvjgYLjgYvjgbnjgYfjgZ3jgbXjgajjgaTjgYVdREzniYgK')
 
+    console('########## Test pandownload ##########')
+    target_link = 1
+    for k in range(len(test_sample)):
+        console('====== Test sample %d result ======' % (k + 1))
+        for df in map(lambda x: x.to_target_link(), link_parser(test_sample[k])):
+            console(df)
+
+    console('\n\n\n########## Test mengji ##########')
+    target_link = 2
     for k in range(len(test_sample)):
         console('====== Test sample %d result ======' % (k + 1))
         for df in map(lambda x: x.to_target_link(), link_parser(test_sample[k])):
@@ -177,46 +224,45 @@ def _test():
 
 if '__main__' == __name__:
     # _test()
-    console(u'====================================================')
-    console(u'          度盘秒传链接格式转换器          ')
-    console(u'支持 pandownload/游侠/PCS-Go/梦姬 链接格式')
-    console(u'')
-    console(u'** 单个游侠链接支持多行录入，需要连续按两次回车键才开始链接转换')
-    console(u'** 其他链接只支持单行录入，只需要按一次回车键就开始链接转换')
-    console(u'** 退出请直接关闭此窗口')
-    console(u'====================================================')
-    console(u'')
+    console('====================================================')
+    console('          度盘秒传链接格式转换器')
+    console('支持 pandownload/游侠/PCS-Go/梦姬/bdlink 链接格式')
+    console('')
+    console('** 单个游侠链接支持多行录入，需要连续按两次回车键才开始链接转换')
+    console('** 其他链接只支持单行录入，只需要按一次回车键就开始链接转换')
+    console('** 退出请直接关闭此窗口')
+    console('====================================================')
+    console('')
 
     while True:
-        console(u'目标：需要转换成什么格式？  【1】pandownload    【2】梦姬')
-        console(u'请输入目标格式（1或2）：', end='')
-        user_target = uinput(u'')
+        console('目标：需要转换成什么格式？  【1】pandownload    【2】梦姬')
+        console('请输入目标格式（1或2）：', end='')
+        user_target = utf8_input('')
         if user_target == '1' or user_target == '2':
             break
-        console(u'输入有误！请重新输入！')
+        console('输入有误！请重新输入！')
 
     target_link = int(user_target)
     while True:
-        console(u'')
+        console('')
         user_link = ''
-        while len(re.sub(r'\s', '', user_link)) == 0:
-            console(u'输入秒传链接：', end='')
-            user_link = uinput(u'')
+        while len(user_link.strip()) == 0:
+            console('输入秒传链接：', end='')
+            user_link = utf8_input('')
 
         if re.search(r'^\s*BDLINK', user_link):
             # only ali213 link can multiple line input
             tmp_input = list()
             while user_link != '':
                 tmp_input.append(user_link)
-                user_link = uinput('')
+                user_link = utf8_input('')
             user_link = ''.join(tmp_input)
 
         try:
             dfs = list(link_parser(user_link))
-            console(u'解析输入链接包含 %d 个文件，将生成 %d 个链接：' % (len(dfs), len(dfs)))
+            console('解析到输入链接包含 %d 个文件，将生成 %d 个链接：' % (len(dfs), len(dfs)))
             for df in map(lambda x: x.to_target_link(), dfs):
                 console(df)
         except BaseException as e:
             traceback.print_exc(file=sys.stdout)
-            console(u'输入链接有误，无法解析！')
-
+            console('输入链接有误，无法解析！')
