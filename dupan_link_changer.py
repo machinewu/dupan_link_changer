@@ -30,6 +30,8 @@ else:
     output_encoding = sys.stdout.encoding
     input_encoding = sys.stdin.encoding
 
+    print("encoding=i:%s o:%s" % (input_encoding, output_encoding))
+
     def utf8_input(*args):
         x = raw_input(*args)
         return x.decode(input_encoding).encode('utf-8')
@@ -70,12 +72,17 @@ class DuFile:
     def to_mengji_link(self):
         return '%s#%s#%s#%s' % (self.md5.upper(), self.md5s.upper(), self.size, self.name)
 
+    def to_pcsgo_link(self):
+        return 'BaiduPCS-Go rapidupload -length=%s -md5=%s -slicemd5=%s "%s"' % (self.size, self.md5.lower(), self.md5s.lower(), self.name.replace('"', '%22'))
+
     def to_target_link(self):
         global target_link
         if target_link == 1:
             return self.to_pandownload_link()
         elif target_link == 2:
             return self.to_mengji_link()
+        elif target_link == 3:
+            return self.to_pcsgo_link()
         else:
             return 'unknown link'
 
@@ -142,8 +149,8 @@ def analysis_pcsgo(url):
     f = url.split('\n')
     f = map(lambda x: x.strip(), f)
     f = filter(lambda x: len(x) > 0, f)
-    f = map(lambda x: re.search(r'-length=([\d]{1,20}) -md5=([\da-f]{32}) -slicemd5=([\da-f]{32}) -crc32=([\d]{1,20}) "([\s\S]+)"', x).groups(), f)
-    f = map(lambda x: DuFile.make(name=x[4], size=x[0], md5=x[1].lower(), md5s=x[2].lower()), f)
+    f = map(lambda x: re.search(r'-length=([\d]{1,20}) -md5=([\da-f]{32}) -slicemd5=([\da-f]{32}) (?:-crc32=\d{1,20} )?"(.+)"', x).groups(), f)
+    f = map(lambda x: DuFile.make(name=x[3], size=x[0], md5=x[1].lower(), md5s=x[2].lower()), f)
     return list(f)
 
 
@@ -177,7 +184,7 @@ def link_parser(url):
     elif re.search(r'^BDLINK', url):
         # ali213
         return analysis_ali213(url)
-    elif re.search(r'^BaiduPCS-Go', url, re.I):
+    elif re.search(r'^(BaiduPCS-Go|rapidupload)', url, re.I):
         # BaiduPCS-Go
         return analysis_pcsgo(url)
     elif re.search(r'^https?://.*?bdlink=', url, re.I):
@@ -219,35 +226,43 @@ def _test():
         for df in map(lambda x: x.to_target_link(), link_parser(test_sample[k])):
             console(df)
 
+    console('\n\n\n########## Test PCS-Go ##########')
+    target_link = 3
+    for k in range(len(test_sample)):
+        console('====== Test sample %d result ======' % (k + 1))
+        for df in map(lambda x: x.to_target_link(), link_parser(test_sample[k])):
+            console(df)
+
     exit(0)
 
 
 if '__main__' == __name__:
     # _test()
-    console('====================================================')
-    console('          度盘秒传链接格式转换器')
-    console('支持 pandownload/游侠/PCS-Go/梦姬/bdlink 链接格式')
+    console(' ==========================================================================')
+    console('                         度盘秒传链接格式转换器')
+    console('            支持 pandownload/梦姬/PCS-Go/游侠/bdlink 链接格式')
     console('')
-    console('** 单个游侠链接支持多行录入，需要连续按两次回车键才开始链接转换')
-    console('** 其他链接只支持单行录入，只需要按一次回车键就开始链接转换')
-    console('** 退出请直接关闭此窗口')
-    console('====================================================')
+    console(' ** 单个游侠链接支持多行录入，需要连续按两次回车键才开始链接转换')
+    console(' ** 其他链接只支持单行录入，只需要按一次回车键就开始链接转换')
+    console(' ** PCS-Go格式在使用时候不要复制前缀BaiduPCS-Go，从rapidupload开始复制就行')
+    console(' ** 退出请直接关闭此窗口')
+    console(' ==========================================================================')
     console('')
 
     while True:
-        console('目标：需要转换成什么格式？  【1】pandownload    【2】梦姬')
-        console('请输入目标格式（1或2）：', end='')
-        user_target = utf8_input('')
-        if user_target == '1' or user_target == '2':
+        console(' 目标：需要转换成什么格式？  【1】pandownload    【2】梦姬    【3】PCS-Go')
+        console(' 请输入目标格式（1或2或3）：', end='')
+        user_target = utf8_input()
+        if user_target in ('1', '2', '3'):
             break
-        console('输入有误！请重新输入！')
+        console(' 输入有误！请重新输入！')
 
     target_link = int(user_target)
     while True:
         console('')
         user_link = ''
         while len(user_link.strip()) == 0:
-            console('输入秒传链接：', end='')
+            console(' 输入秒传链接：', end='')
             user_link = utf8_input('')
 
         if re.search(r'^\s*BDLINK', user_link):
@@ -260,9 +275,9 @@ if '__main__' == __name__:
 
         try:
             dfs = list(link_parser(user_link))
-            console('解析到输入链接包含 %d 个文件，将生成 %d 个链接：' % (len(dfs), len(dfs)))
+            console(' 解析到输入链接包含 %d 个文件，将生成 %d 个链接：' % (len(dfs), len(dfs)))
             for df in map(lambda x: x.to_target_link(), dfs):
                 console(df)
         except BaseException as e:
             traceback.print_exc(file=sys.stdout)
-            console('输入链接有误，无法解析！')
+            console(' 输入链接有误，无法解析！')
