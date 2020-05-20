@@ -160,7 +160,7 @@ def analysis_common_bdlink(url):
     f = url.split('\n')
     f = map(lambda x: x.strip(), f)
     f = filter(lambda x: len(x) > 0, f)
-    f = map(lambda x: re.search(r'bdlink=(.*)', x, re.I).group(1), f)
+    f = map(lambda x: re.search(r'bdlink=([^&#?]*)', x, re.I).group(1), f)
     f = map(lambda x: base64_decodestring(x), f)
     f = map(lambda x: analysis_mengji(x), f)
     ff = list()
