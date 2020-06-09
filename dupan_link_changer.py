@@ -169,7 +169,7 @@ def analysis_common_bdlink(url):
     f = filter(lambda x: len(x) > 0, f)
     f = map(lambda x: re.search(r'bdlink=([^&#?]*)', x, re.I).group(1), f)
     f = map(lambda x: base64_decodestring(x), f)
-    f = map(lambda x: analysis_mengji(x), f)
+    f = map(lambda x: link_parser(x), f)
     ff = list()
     for x in f:
         ff.extend(x)
@@ -210,6 +210,7 @@ def _test():
     test_sample.append('3C7E037608405F71810B799EA978EA7A#E25F1F5F27E860C5C67D5589E9E3DCF9#320828643#第268个.rar')
     test_sample.append('BaiduPCS-Go rapidupload -length=504723006 -md5=e4166ab27799d640ffda920415b684ef -slicemd5=dd662581d3028842d7910d35c083e1d2 -crc32=90455140 "在地下城邂逅是否错过了什么Dungeon Machita PC版.rar"')
     test_sample.append('https://pan.baidu.com/#bdlink=MjdFRjI2RDQ5QzZFNDYyRDI0MThCMTQ0QkI1OUM1MDYjOUYyRjgwN0NERjA0MTRFRkZDOEE1OENEQURFNkQ5OTkjOTQyMTc5NDE3I0Z1cmlvbiBDaHJvbmljbGVzLnppcA==')
+    test_sample.append('https://pan.baidu.com/#bdlink=YmRwYW46Ly9NVGMwT0RrM01UWTJMamQ2ZkRVM01UYzJOVGMxTkh4a01XSTROREJpTVRJd1pUVmpZemhrWWpnMU1EVTVaVFUyTkRWa09ERTNNWHhrT0RZd1l6QmlOekE0TjJFNU9UUmpaR0UwWXpFME0yWXlaVEl4TkdJek1nPT0=')
     test_sample.append('https://xxx.yyy.com/#bdlink=NzY3M0ZERTAyMkM5OEJEMEM3NzM2NzlGRTUyMEMxQzkjREQyRTFDMUM4Mzg2NEU4MDNDOUM1M0IyNzMxQkVDMkQjMTcxNTI3MjE5MiNbMjAwNDI0XVvjgYLjgYvjgbnjgYfjgZ3jgbXjgajjgaTjgYVdREzniYgK')
 
     console('########## Test pandownload ##########')
