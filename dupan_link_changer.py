@@ -91,7 +91,8 @@ class DuFile:
 
 
 def analysis_pandownload(url):
-    f = re.sub(r'\s', '\n', re.sub(r'^bdpan://', '', url, re.I)).split('\n')
+    f = re.sub(r'\s', '\n', url).split('\n')
+    f = map(lambda x: re.sub(r'^bdpan://', '', x, re.I), f)
     f = map(lambda x: x.strip(), f)
     f = filter(lambda x: len(x) > 0, f)
     f = map(lambda x: str(base64_decodestring(x)), f)
@@ -212,6 +213,8 @@ def _test():
     test_sample.append('https://pan.baidu.com/#bdlink=MjdFRjI2RDQ5QzZFNDYyRDI0MThCMTQ0QkI1OUM1MDYjOUYyRjgwN0NERjA0MTRFRkZDOEE1OENEQURFNkQ5OTkjOTQyMTc5NDE3I0Z1cmlvbiBDaHJvbmljbGVzLnppcA==')
     test_sample.append('https://pan.baidu.com/#bdlink=YmRwYW46Ly9NVGMwT0RrM01UWTJMamQ2ZkRVM01UYzJOVGMxTkh4a01XSTROREJpTVRJd1pUVmpZemhrWWpnMU1EVTVaVFUyTkRWa09ERTNNWHhrT0RZd1l6QmlOekE0TjJFNU9UUmpaR0UwWXpFME0yWXlaVEl4TkdJek1nPT0=')
     test_sample.append('https://xxx.yyy.com/#bdlink=NzY3M0ZERTAyMkM5OEJEMEM3NzM2NzlGRTUyMEMxQzkjREQyRTFDMUM4Mzg2NEU4MDNDOUM1M0IyNzMxQkVDMkQjMTcxNTI3MjE5MiNbMjAwNDI0XVvjgYLjgYvjgbnjgYfjgZ3jgbXjgajjgaTjgYVdREzniYgK')
+    test_sample.append('https://pan.baidu.com/#bdlink=YmRwYW46Ly9ZV0ZoTGpkNmZEVTJOelV5TmpJMU0zeG1ZVEppTm1NME0yWmxOak14WTJKbE9UZ3hPV1ZpT1RnMk5HSXhOV1ZpT0h3M1pqaGxOamswWkRZME5UWmxPRGxtT1RBM09ERTBOalUxWW1ZeU1UQmpNZz09CmJkcGFuOi8vWVdGaExqZDZMakF3TVh3MU1UZ3lPRFV4TVRSOE9ESmpOVFEwWlRRd05HUmhPRFJtTnpFNU4yRTVNV1V6WlRnMFpXSmxNakY4T0RRMU5qQTRNVEptTUdRMlpHRTJOMlEwTXpCaE1XSTFZVEZqWlRVMVpUVT0=')
+
 
     console('########## Test pandownload ##########')
     target_link = 1
