@@ -96,7 +96,7 @@ def analysis_pandownload(url):
     f = map(lambda x: x.strip(), f)
     f = filter(lambda x: len(x) > 0, f)
     f = map(lambda x: str(base64_decodestring(x)), f)
-    f = map(lambda x: re.search(r'([\s\S]+)\|([\d]{1,20})\|([\da-f]{32})\|([\da-f]{32})', x).groups(), f)
+    f = map(lambda x: re.search(r'([\s\S]+)\|([\d]{1,20})\|([\da-f]{32})\|([\da-f]{32})', x, re.I).groups(), f)
     f = map(lambda x: DuFile.make(name=x[0], size=x[1], md5=x[2].lower(), md5s=x[3].lower()), f)
     return list(f)
 
@@ -150,7 +150,7 @@ def analysis_pcsgo(url):
     f = url.split('\n')
     f = map(lambda x: x.strip(), f)
     f = filter(lambda x: len(x) > 0, f)
-    f = map(lambda x: re.search(r'-length=([\d]{1,20}) -md5=([\da-f]{32}) -slicemd5=([\da-f]{32}) (?:-crc32=\d{1,20} )?"(.+)"', x).groups(), f)
+    f = map(lambda x: re.search(r'-length=([\d]{1,20}) -md5=([\da-f]{32}) -slicemd5=([\da-f]{32}) (?:-crc32=\d{1,20} )?"(.+)"', x, re.I).groups(), f)
     f = map(lambda x: DuFile.make(name=x[3], size=x[0], md5=x[1].lower(), md5s=x[2].lower()), f)
     return list(f)
 
@@ -159,7 +159,7 @@ def analysis_mengji(url):
     f = url.split('\n')
     f = map(lambda x: x.strip(), f)
     f = filter(lambda x: len(x) > 0, f)
-    f = map(lambda x: re.search(r'([\dA-F]{32})#([\dA-F]{32})#([\d]{1,20})#([\s\S]+)', x).groups(), f)
+    f = map(lambda x: re.search(r'([\dA-F]{32})#([\dA-F]{32})#([\d]{1,20})#([\s\S]+)', x, re.I).groups(), f)
     f = map(lambda x: DuFile.make(name=x[3], size=x[2], md5=x[0].lower(), md5s=x[1].lower()), f)
     return list(f)
 
